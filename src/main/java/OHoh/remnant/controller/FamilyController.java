@@ -15,8 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FamilyController {
 
-    private final FamilyService familyService;
 
+    private final FamilyService familyService;
+    @GetMapping("/health")
+    public String healthCheck() {
+        return "ok"; // 아무 로직 없이 "ok"만 리턴!
+    }
     @GetMapping("/login/{guardianId}")
     public BaseResponse<FamilyLoginResult> guardianLogin(@PathVariable Long guardianId) {
         FamilyLoginResult result = familyService.login(guardianId);
