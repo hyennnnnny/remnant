@@ -31,24 +31,25 @@ public class UserService {
     private static final double AGE_CORRECTION_FACTOR = 1.8; // 70대 보정 계수 (\alpha)
 
     // 1. 정확도 (Accuracy): 높을수록 좋음
-    private static final double REF_20S_ACC_MEAN = 98.0;
-    private static final double REF_20S_ACC_SD = 2.0;
+    // 1. 정확도 (Accuracy)
+    private static final double REF_20S_ACC_MEAN = 95.33;
+    private static final double REF_20S_ACC_SD = 4.46;
 
-    // 2. 안정성 (Stability/SD): 낮을수록 좋음
-    private static final double REF_20S_STAB_MEAN = 250.0;
-    private static final double REF_20S_STAB_SD = 50.0;
+    // 2. 안정성 (Stability/SD)
+    private static final double REF_20S_STAB_MEAN = 14705.75;
+    private static final double REF_20S_STAB_SD = 9299.00;
 
-    // 3. 실행력 (Execution/Latency): 낮을수록 좋음
-    private static final double REF_20S_EXEC_MEAN = 1200.0;
-    private static final double REF_20S_EXEC_SD = 300.0;
+    // 3. 실행력 (Execution/Latency)
+    private static final double REF_20S_EXEC_MEAN = 8117.66;
+    private static final double REF_20S_EXEC_SD = 6016.76;
 
-    // 4. 억제력 (Inhibition/Duplicates): 낮을수록 좋음
-    private static final double REF_20S_INHIB_MEAN = 0.05;
-    private static final double REF_20S_INHIB_SD = 0.02;
+    // 4. 억제력 (Inhibition/Duplicates)
+    private static final double REF_20S_INHIB_MEAN = 0.0028;
+    private static final double REF_20S_INHIB_SD = 0.0103;
 
-    // 5. 효율성 (Efficiency/Path): 높을수록 좋음
-    private static final double REF_20S_EFFI_MEAN = 95.0;
-    private static final double REF_20S_EFFI_SD = 5.0;
+    // 5. 효율성 (Efficiency) - 정확도와 동일하게 설정
+    private static final double REF_20S_EFFI_MEAN = 95.33;
+    private static final double REF_20S_EFFI_SD = 4.46;
 
     public UserLoginResult login(UserLoginRequest request) {
         // 1. 이름으로 기존 유저 조회, 없으면 새로 저장
@@ -140,8 +141,8 @@ public class UserService {
         double accScore = convertToStandardScore(rawAcc, REF_20S_ACC_MEAN, REF_20S_ACC_SD, true);
         double execScore = convertToStandardScore(rawExec, REF_20S_EXEC_MEAN * AGE_CORRECTION_FACTOR, REF_20S_EXEC_SD * AGE_CORRECTION_FACTOR, false);
         double stabScore = convertToStandardScore(rawStab, REF_20S_STAB_MEAN * AGE_CORRECTION_FACTOR, REF_20S_STAB_SD * AGE_CORRECTION_FACTOR, false);
-        double inhibScore = convertToStandardScore(rawInhib, 0.05, 0.02, false);
-        double effiScore = convertToStandardScore(rawEffi, 95.0, 5.0, true);
+        double inhibScore = convertToStandardScore(rawInhib, REF_20S_INHIB_MEAN, REF_20S_INHIB_SD, false);
+        double effiScore = convertToStandardScore(rawEffi, REF_20S_EFFI_MEAN, REF_20S_EFFI_SD, true);
         // 3. 가중치 합산 (Total Score)
         int totalScore = (int) Math.round(
                 (accScore * 0.30) + (stabScore * 0.25) + (execScore * 0.15) + (inhibScore * 0.20) + (effiScore * 0.10)
