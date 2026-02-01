@@ -29,6 +29,7 @@ public class UserService {
     private final GameResultRepository gameResultRepository;
 
     private static final double AGE_CORRECTION_FACTOR = 1.8; // 70대 보정 계수 (\alpha)
+    private static final double ACC_CORRECTION_FACTOR = 0.9;
 
     // 1. 정확도 (Accuracy): 높을수록 좋음
     // 1. 정확도 (Accuracy)
@@ -127,7 +128,15 @@ public class UserService {
         if (answers.isEmpty()) return createEmptyResponse();
 
         // 1. 각 지표별 원시 데이터(Raw Data) 추출
-        double rawAcc = (answers.stream().filter(UserAnswer::getIsCorrect).count() / (double) answers.size()) * 100;
+        long correctCount = answers.stream().filter(UserAnswer::getIsCorrect).count();
+        int totalTargets = 25; // 5문제 * 5개 = 총 25개의 목표
+
+        // [정확도] 전체 25개 중 몇 개를 찾았는가? (완성도)
+        double rawAcc = (correctCount / (double) totalTargets) * 100;
+
+        // [효율성] 내가 누른 전체 클릭 중 정답인 비율은 얼마인가? (정밀도)
+        double rawEffi = (correctCount / (double) answers.size()) * 100;
+
         double rawStab = calculateRawStabilityCorrected(answers);
         double rawExec = answers.stream()
                 .filter(a -> a.getClickOrder() == 1)
@@ -135,14 +144,17 @@ public class UserService {
                 .average()
                 .orElse(answers.get(0).getMilisec());
         double rawInhib = calculateRawInhibition(answers);
-        double rawEffi = rawAcc;
 
-        // 2. Z-Score 기반 점수 산출 (20대 기준 -> 70대 보정 적용)
-        double accScore = convertToStandardScore(rawAcc, REF_20S_ACC_MEAN, REF_20S_ACC_SD, true);
-        double execScore = convertToStandardScore(rawExec, REF_20S_EXEC_MEAN * AGE_CORRECTION_FACTOR, REF_20S_EXEC_SD * AGE_CORRECTION_FACTOR, false);
+        // 2. 지수별 점수 산출
+        double accScore = rawAcc; // 25개를 다 찾으면 100점
+        double effiScore = rawEffi; // 틀린 클릭 없이 정답만 딱딱 누르면 100점
+
+        // 억제력: 중복 클릭이 없으면 100점, 있으면 감점
+        double inhibScore = convertToStandardScore(rawInhib, REF_20S_INHIB_MEAN * AGE_CORRECTION_FACTOR, REF_20S_INHIB_SD * AGE_CORRECTION_FACTOR, false);
+        // 실행력 & 안정성: 20대 기준 대비 상대 평가 (보정치 적용)
         double stabScore = convertToStandardScore(rawStab, REF_20S_STAB_MEAN * AGE_CORRECTION_FACTOR, REF_20S_STAB_SD * AGE_CORRECTION_FACTOR, false);
-        double inhibScore = convertToStandardScore(rawInhib, REF_20S_INHIB_MEAN, REF_20S_INHIB_SD, false);
-        double effiScore = convertToStandardScore(rawEffi, REF_20S_EFFI_MEAN, REF_20S_EFFI_SD, true);
+        double execScore = convertToStandardScore(rawExec, REF_20S_EXEC_MEAN * AGE_CORRECTION_FACTOR, REF_20S_EXEC_SD * AGE_CORRECTION_FACTOR, false);
+
         // 3. 가중치 합산 (Total Score)
         int totalScore = (int) Math.round(
                 (accScore * 0.30) + (stabScore * 0.25) + (execScore * 0.15) + (inhibScore * 0.20) + (effiScore * 0.10)
@@ -159,18 +171,14 @@ public class UserService {
                 .build();
     }
 
-    /**
-     * Z-Score를 기반으로 한 T-Score(100점 만점 변환) 산출 로직
-     * 과학적 근거: 평균(Z=0)을 70점으로 설정, 표준편차 1단위당 10점 가감
-     */
     private double convertToStandardScore(double raw, double mean, double sd, boolean higherIsBetter) {
-        if (sd == 0) return 70.0;
+        if (sd == 0) return 80.0;
         double zScore = (raw - mean) / sd;
         if (!higherIsBetter) zScore = -zScore; // 시간이 길거나 중복이 많으면 감점
 
         // T-Score 공식: 70 + (10 * Z)
         // 예: Z가 -1.5(MCI 경계선)일 때 -> 70 - 15 = 55점
-        double tScore = 70 + (zScore * 10);
+        double tScore = 80 + (zScore * 10);
         return Math.max(0, Math.min(100, tScore));
     }
 
